@@ -1,0 +1,6 @@
+= Strophe.j
+
+Strophe.j is an Objective-J wrapper around the strophe.js library. It mostly
+offers some decoration around the more class-like aspects of strophe.js while
+letting strophe.js do its thing for message assembly (since the strophe message
+assembly syntax is wonderfully concise).
