@@ -1,15 +1,66 @@
-@import "strophe.js"
 @import <ObjJUtils/DelegateProxy.j>
 
-#define SR_ERROR_STATUS                 Strophe.Status.ERROR
-#define SR_CONNECTING_STATUS            Strophe.Status.CONNECTING_STATUS
-#define SR_CONNECTION_FAILED_STATUS     Strophe.Status.CONNFAIL
-#define SR_AUTHENTICATING_STATUS        Strophe.Status.AUTHENTICATING
-#define SR_AUTHENTICATION_FAILED_STATUS Strophe.Status.AUTHFAIL
-#define SR_CONNECTED_STATUS             Strophe.Status.CONNECTED
-#define SR_DISCONNECTED_STATUS          Strophe.Status.DISCONNECTED
-#define SR_DISCONNECTING_STATUS         Strophe.Status.DISCONNECTING
+// strophe.js imports
+/*@import "sha1.js"
+@import "md5.js"
+@import "b64.js"
+@import "strophe.js"*/
 
+@import "SRMessage.j"
+@import "SRMyUser.j"
+
+SR_ERROR_STATUS                 = Strophe.Status.ERROR;
+SR_CONNECTING_STATUS            = Strophe.Status.CONNECTING_STATUS;
+SR_CONNECTION_FAILED_STATUS     = Strophe.Status.CONNFAIL;
+SR_AUTHENTICATING_STATUS        = Strophe.Status.AUTHENTICATING;
+SR_AUTHENTICATION_FAILED_STATUS = Strophe.Status.AUTHFAIL;
+SR_CONNECTED_STATUS             = Strophe.Status.CONNECTED;
+SR_DISCONNECTED_STATUS          = Strophe.Status.DISCONNECTED;
+SR_DISCONNECTING_STATUS         = Strophe.Status.DISCONNECTING;
+
+/*!
+ * The SRJabberConnection class is used to manage a Strophe.j Jabber connection.
+ * This connection occurs over BOSH (XEP-0124) to a URL provided at
+ * instantiation time.
+ *
+ * The typical lifecycle of a connection involves creating a connection via the
+ * connectionWithBoshURL:delegate: method, which takes the URL at which the
+ * Jabber server is listening for BOSH connections as well as a delegate object
+ * that will receive notifications related to the connection (typically some
+ * sort of connection controller).
+ *
+ * Once the connection is created, you can use the connectAs:withPassword:
+ * method to actually connect to the server. This method takes an SRMyUser
+ * object; if you would prefer to let the SRJabberConnection create that object
+ * for you, you can instead use connectWithJID:password:. This just takes a JID
+ * (as a CPString) and creates an SRMyUser object.
+ *
+ * Both of these will connect to the BOSH service and call various delegate
+ * methods as the connection proceeds. These are:
+ *  - connection:didFailWithError: for generic failures,
+ *  - connection:didFailToAuthenticateWithError: for authentication failures,
+ *  - connectionDidConnectSuccessfully: for successful connections,
+ *  - connectionIsConnecting: as the connection is connecting,
+ *  - connectionIsAuthenticating: as the connection is authenticating, and
+ *  - connectionDidDisconnect: once the connection has disconnected.
+ *
+ * Note that you should generally not start interacting with the Jabber server
+ * until after the connectionDidConnectSuccessfully: delegate method is fired.
+ *
+ * Once the connection has successfully connected, the
+ * connection:didReceiveMessage: delegate method will be called whenever a
+ * message is received. The second parameter passed to this method is an
+ * SRMessage object.
+ *
+ * Finally, to send messages to the server, you can either create an SRMessage
+ * object and send it with the sendMessage: method, or you can use the
+ * strophe.js helpers to create a stanza without wrapping it in an SRMessage
+ * object and send it using the sendStanza: method. Both ways are acceptable,
+ * and some are simply easier in certain cases (for example, SRMessage's
+ * replyWithStanza: method produces another SRMessage to reply to the target
+ * SRMessage, while assembling an arbitrary message will likely be easier with
+ * the strophe.js helpers).
+ */
 @implementation SRJabberConnection : CPObject
 {
     id stropheConnection;
@@ -22,7 +73,12 @@
     DelegateProxy delegateProxy;
 }
 
-- (SRJabberConnection)initWithBoshUrl:(CPURL)aURL delegate:(id)aDelegate
++ (SRJabberConnection)connectionWithBoshURL:(CPURL)aURL delegate:(id)aDelegate
+{
+    return [[self alloc] initWithBoshURL:aURL delegate:aDelegate];
+}
+
+- (SRJabberConnection)initWithBoshURL:(CPURL)aURL delegate:(id)aDelegate
 {
     boshURL = aURL;
     stropheConnection = new Strophe.Connection(aURL);
@@ -43,16 +99,16 @@
 
             return true;
         });
-    stropheConnection.connect([currentUser JIDString], aPassword),
+    stropheConnection.connect([currentUser bareJID], aPassword,
         function(status, error)
         {
             [self didCompleteWithStatus:status error:error]
         });
 }
 
-- (void)connectWithJID:(id)aJID withPassword:(CPString)aPassword
+- (void)connectWithJID:(CPString)aJID password:(CPString)aPassword
 {
-    var user = [SRMyUser userWithConnection:self JID:aJID];
+    var user = [SRMyUser userWithJID:aJID connection:self];
     
     [self connectAs:user withPassword:aPassword]
 }
@@ -92,6 +148,10 @@
 
 - (void)sendStanza:(id)aJabberStanza
 {
+    // Make sure we've got an XML element.
+    if (aJabberStanza.tree)
+        aJabberStanza = aJabberStanza.tree();
+
     stropheConnection.send(aJabberStanza);
 }
 
