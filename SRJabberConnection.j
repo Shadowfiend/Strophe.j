@@ -60,6 +60,12 @@ SR_DISCONNECTING_STATUS         = Strophe.Status.DISCONNECTING;
  * replyWithStanza: method produces another SRMessage to reply to the target
  * SRMessage, while assembling an arbitrary message will likely be easier with
  * the strophe.js helpers).
+ *
+ * Because a single Jabber connection may have multiple interested parties (for
+ * example, a ConnectionController for handling the connection itself, a
+ * MessageController for handling incoming messages, etc), more than one
+ * delegate can be added to the connection. The addDelegate: method will add a
+ * delegate. All delegates can implement any of the delegate methods.
  */
 @implementation SRJabberConnection : CPObject
 {
@@ -69,8 +75,10 @@ SR_DISCONNECTING_STATUS         = Strophe.Status.DISCONNECTING;
     SRMyUser currentUser;
     BOOL loggedIn;
 
-    id delegate;
-    DelegateProxy delegateProxy;
+    /*!
+     * Any delegates that are interested in updates.
+     */
+    CPArray delegates;
 }
 
 + (SRJabberConnection)connectionWithBoshURL:(CPURL)aURL delegate:(id)aDelegate
@@ -83,8 +91,7 @@ SR_DISCONNECTING_STATUS         = Strophe.Status.DISCONNECTING;
     boshURL = aURL;
     stropheConnection = new Strophe.Connection(aURL);
 
-    delegate = aDelegate;
-    delegateProxy = [DelegateProxy proxyWithDelegate:delegate];
+    delegates = [[DelegateProxy proxyWithDelegate:aDelegate]];
 
     return self;
 }
@@ -113,32 +120,70 @@ SR_DISCONNECTING_STATUS         = Strophe.Status.DISCONNECTING;
     [self connectAs:user withPassword:aPassword]
 }
 
+- (void)addDelegate:(id)aDelegate
+{
+    delegates.push([DelegateProxy proxyWithDelegate:aDelegate]);
+}
+
 - (void)didCompleteWithStatus:(CPString)aStatus
                         error:(id)anError
 {
     if (aStatus == SR_ERROR_STATUS || aStatus == SR_CONNECTION_FAILED_STATUS)
-        [delegateProxy connection:self didFailWithError:anError]
+    {
+        [self notifyDelegates:@selector(connection:didFailWithError:)
+                         with:[self, anError]]
+    }
     else if (aStatus == SR_AUTHENTICATION_FAILED_STATUS)
-        [delegateProxy connection:self didFailToAuthenticateWithError:anError]
+    {
+        [self notifyDelegates:@selector(connection:didFailToAuthenticateWithError:)
+                         with:[self, anError]]
+    }
     else if (aStatus == SR_CONNECTED_STATUS)
     {
-        [delegateProxy connectionDidConnectSuccessfully:self]
+        [self notifyDelegates:@selector(connectionDidConnectSuccessfully:)
+                         with:[self]];
         loggedIn = YES;
     }
     else if (aStatus == SR_AUTHENTICATING_STATUS)
-        [delegateProxy connectionIsAuthenticating:self]
+    {
+        [self notifyDelegates:@selector(connectionIsAuthenticating:)
+                         with:[self]];
+    }
     else if (aStatus == SR_CONNECTING_STATUS)
-        [delegateProxy connectionIsConnecting:self]
+    {
+        [self notifyDelegates:@selector(connectionIsConnecting:)
+                         with:[self]];
+    }
     else if (aStatus == SR_DISCONNECTING_STATUS)
-        [delegateProxy connectionIsDisconnecting:self]
+    {
+        [self notifyDelegates:@selector(connectionIsDisconnecting:)
+                         with:[self]];
+    }
     else if (aStatus == SR_DISCONNECTED_STATUS)
-        [delegateProxy connectionDidDisconnect:self]
+    {
+        [self notifyDelegates:@selector(connectionDidDisconnect:)
+                         with:[self]];
+    }
 }
 
 - (void)didReceiveStanza:(id)aJabberStanza
 {
-    [delegateProxy connection:self
-            didReceiveMessage:[SRMessage messageWithStanza:aJabberStanza]]
+    [self notifyDelegates:@selector(connection:didReceiveMessage:)
+                     with:[self, [SRMessage messageWithStanza:aJabberStanza]]]
+}
+
+- (void)notifyDelegates:(SEL)aSelector with:(CPArray)anArgumentList
+{
+    anArgumentList.unshift(aSelector);
+
+    for (var i = 0; i < delegates.length; ++i)
+    {
+        anArgumentList.unshift(delegates[i]);
+
+        objj_msgSend.apply(null, anArgumentList);
+
+        anArgumentList.shift();
+    }
 }
 
 - (void)sendMessage:(SRMessage)aMessage

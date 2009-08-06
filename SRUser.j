@@ -23,6 +23,9 @@ SROffline = 2;
     [super initWithConnection:aConnection]
 
     JID = [SRJID JIDWithStringJID:aJID];
+    name = null;
+    status = "";
+    available = SRAvailable;
 
     return self;
 }
@@ -47,13 +50,24 @@ SROffline = 2;
     return [JID unescaped];
 }
 
+- (CPString)JIDNode
+{
+    return [JID node];
+}
+
+- (CPString)JIDDomain
+{
+    return [JID domain];
+}
+
+- (CPString)JIDResource
+{
+    return [JID resource];
+}
+
 - (CPString)name
 {
-    if (! name)
-    {
-    }
-
-    return name;
+    return name || [JID node];
 }
 
 @end

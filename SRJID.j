@@ -22,6 +22,21 @@
     return fullJID;
 }
 
+- node
+{
+    return Strophe.getNodeFromJid(fullJID);
+}
+
+- domain
+{
+    return Strophe.getDomainFromJid(fullJID);
+}
+
+- resource
+{
+    return Strophe.getResourceFromJid(fullJID);
+}
+
 - bare
 {
     return Strophe.getBareJidFromJid(fullJID);
