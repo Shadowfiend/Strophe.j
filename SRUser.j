@@ -30,39 +30,9 @@ SROffline = 2;
     return self;
 }
 
-- (CPString)JID
+- (SRJID)JID
 {
-    return [JID description];
-}
-
-- (CPString)bareJID
-{
-    return [JID bare];
-}
-
-- (CPString)escapedJID
-{
-    return [JID escaped];
-}
-
-- (CPString)unescapedJID
-{
-    return [JID unescaped];
-}
-
-- (CPString)JIDNode
-{
-    return [JID node];
-}
-
-- (CPString)JIDDomain
-{
-    return [JID domain];
-}
-
-- (CPString)JIDResource
-{
-    return [JID resource];
+    return JID;
 }
 
 - (CPString)name

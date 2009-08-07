@@ -24,4 +24,9 @@
 {
 }
 
+- (CPString)name
+{
+    return [super name];
+}
+
 @end

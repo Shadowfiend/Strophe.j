@@ -8,11 +8,19 @@ SRRoomJoined    = 2;
 var SRMUCNS = 'http://jabber.org/protocol/muc';
 var SRMUCUserNS = SRMUCNS + '#user';
 
+var SRMUCMessageType = 'groupchat';
+
 /*!
  * The SRRoom class is used to manage a Strophe.j MUC chat. It wraps all of the
  * communications that have to happen to join and leave a room, provide
  * presence information, and obtain a list of participants, as well as the
  * traditional functionality of handling room messages.
+ *
+ * Joining a room is done first by creating a new room using
+ * roomWithJID:connection:delegate:. Once you have the room object, send it the
+ * join message to actually join the room. This should result in a series of
+ * room:didHaveUserJoin: messages to the delegate followed by a
+ * didJoinRoom:asOccupant: message.
  *
  * An SRRoom delegate can receive a variety of notifications regarding the
  * room's status, including:
@@ -21,12 +29,18 @@ var SRMUCUserNS = SRMUCNS + '#user';
  *  - room:didHaveUserJoin: for new users joining the room, and
  *  - room:didHaveUserLeave: for users leaving the room.
  *
- * Note that room:didHaveUserJoin: is invoked once for every user that joins the
- * room externally, as well.
+ * Note that room:didHaveUserJoin: is invoked once for every user that is
+ * already in the room when you first join it.
  *
  * Rooms expose the SRRoomOccupant object that represents their own occupant via
  * the ownOccupant getter. This is an SRRoomOccupant that corresponds to the
  * current user. It carries room-specific information about that user.
+ *
+ * Once the room has been joined successfully, sending a message is done by
+ * invoking either the sendMessage: or the sendText: methods. sendMessage: is
+ * used if you need to do any customization beyond adding text. Note that
+ * sendMessage: handles setting the to and from JIDs, as well as the message
+ * type.
  */
 @implementation SRRoom : SRObject
 {
@@ -85,6 +99,19 @@ var SRMUCUserNS = SRMUCNS + '#user';
                 .tree();
 }
 
+- (void)sendMessage:(SRMessage)aMessage
+{
+    [aMessage setToJID:JID]
+    [aMessage setFromJID:[[connection currentUser] JID]]
+    [aMessage setType:SRMUCMessageType]
+    [connection sendMessage:aMessage]
+}
+
+- (void)sendText:(CPString)messageText
+{
+    [self sendMessage:[SRMessage messageWithText:messageText]]
+}
+
 - (void)connection:(SRJabberConnection)aConnection
  didReceiveMessage:(SRMessage)aMessage
 {
@@ -101,11 +128,21 @@ var SRMUCUserNS = SRMUCNS + '#user';
 
             if (nick != [[connection currentUser] name])
             {
-                occupants[nick] =
-                    [SRRoomOccupant occupantWithNick:nick
-                                             mucInfo:mucInfo];
+                if (stanza.attr('type') == 'unavailable')
+                {
+                    var user = occupants[nick];
+                    occupants[nick] = null;
 
-                [delegateProxy room:self didHaveUserJoin:occupants[nick]]
+                    [delegateProxy room:self didHaveUserLeave:user]
+                }
+                else
+                {
+                    occupants[nick] =
+                        [SRRoomOccupant occupantWithNick:nick
+                                                 mucInfo:mucInfo];
+
+                    [delegateProxy room:self didHaveUserJoin:occupants[nick]]
+                }
             }
             else if (joinState != SRRoomJoined)
             {

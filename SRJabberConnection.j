@@ -106,7 +106,7 @@ SR_DISCONNECTING_STATUS         = Strophe.Status.DISCONNECTING;
 
             return true;
         });
-    stropheConnection.connect([currentUser bareJID], aPassword,
+    stropheConnection.connect([[currentUser JID] description], aPassword,
         function(status, error)
         {
             [self didCompleteWithStatus:status error:error]
