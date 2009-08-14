@@ -102,14 +102,28 @@ SR_DISCONNECTING_STATUS         = Strophe.Status.DISCONNECTING;
 
     stropheConnection.addHandler(function(stanza)
         {
-            [self didReceiveStanza:stanza]
+            try
+            {
+                [self didReceiveStanza:stanza]
+            }
+            catch(anException)
+            {
+                objj_exception_report(anException, "SRJabberConnection.j");
+            }
 
             return true;
         });
     stropheConnection.connect([[currentUser JID] description], aPassword,
         function(status, error)
         {
-            [self didCompleteWithStatus:status error:error]
+            try
+            {
+                [self didCompleteWithStatus:status error:error]
+            }
+            catch(anException)
+            {
+                objj_exception_report(anException, "SRJabberConnection.j");
+            }
         });
 }
 
