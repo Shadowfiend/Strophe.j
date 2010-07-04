@@ -10,7 +10,7 @@
 @import "SRMyUser.j"
 
 SR_ERROR_STATUS                 = Strophe.Status.ERROR;
-SR_CONNECTING_STATUS            = Strophe.Status.CONNECTING_STATUS;
+SR_CONNECTING_STATUS            = Strophe.Status.CONNECTING;
 SR_CONNECTION_FAILED_STATUS     = Strophe.Status.CONNFAIL;
 SR_AUTHENTICATING_STATUS        = Strophe.Status.AUTHENTICATING;
 SR_AUTHENTICATION_FAILED_STATUS = Strophe.Status.AUTHFAIL;

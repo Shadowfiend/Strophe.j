@@ -45,22 +45,22 @@ var SRMessageElement = 'message';
     return [[self alloc] initWithStanza:aJabberStanza];
 }
 
-- (SRMesssage)initWithFrom:(SRJID)fromJID
-                        to:(SRJID)toJID
+- (SRMesssage)initWithFrom:(SRJID)_fromJID
+                        to:(SRJID)_toJID
                     stanza:(id)aJabberStanza
 {
-    fromJID = fromUser;
-    toJID = toUser;
+    _fromJID = fromUser;
+    _toJID = toUser;
     stanza = aJabberStanza;
 
     if (stanza.getAttribute('_realname') == SRMessageElement)
     {
-        stanza.setAttribute('from', [fromJID JID]);
-        stanza.setAttribute('to', [toJID JID]);
+        stanza.setAttribute('from', [_fromJID JID]);
+        stanza.setAttribute('to', [_toJID JID]);
     }
     else
     {
-        stanza = $msg({ from: [fromJID JID], to: [toJID JID] }).cnode(stanza)
+        stanza = $msg({ from: [_fromJID JID], to: [_toJID JID] }).cnode(stanza)
                                                                  .tree();
     }
 }
