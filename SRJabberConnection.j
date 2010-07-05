@@ -15,6 +15,7 @@ SR_CONNECTION_FAILED_STATUS     = Strophe.Status.CONNFAIL;
 SR_AUTHENTICATING_STATUS        = Strophe.Status.AUTHENTICATING;
 SR_AUTHENTICATION_FAILED_STATUS = Strophe.Status.AUTHFAIL;
 SR_CONNECTED_STATUS             = Strophe.Status.CONNECTED;
+SR_ATTACHED_STATUS              = Strophe.Status.ATTACHED;
 SR_DISCONNECTED_STATUS          = Strophe.Status.DISCONNECTED;
 SR_DISCONNECTING_STATUS         = Strophe.Status.DISCONNECTING;
 
@@ -127,11 +128,49 @@ SR_DISCONNECTING_STATUS         = Strophe.Status.DISCONNECTING;
         });
 }
 
+- (void)connectAs:(SRMyUser)aUser SID:(CPString)aSID RID:(CPString)aRID
+{
+    currentUser = aUser;
+
+    stropheConnection.addHandler(function(stanza)
+        {
+            try
+            {
+                [self didReceiveStanza:stanza]
+            }
+            catch(anException)
+            {
+                objj_exception_report(anException, "SRJabberConnection.j");
+            }
+
+            return true;
+        });
+    stropheConnection.attach([[currentUser JID] description], aSID, aRID,
+        function(status, error)
+        {
+            try
+            {
+                [self didCompleteWithStatus:status error:error]
+            }
+            catch(anException)
+            {
+                objj_exception_report(anException, "SRJabberConnection.j");
+            }
+        });
+}
+
 - (void)connectWithJID:(CPString)aJID password:(CPString)aPassword
 {
     var user = [SRMyUser userWithJID:aJID connection:self];
     
-    [self connectAs:user withPassword:aPassword]
+    [self connectAs:user withPassword:aPassword];
+}
+
+- (void)connectWithJID:(CPString)aJID SID:(CPString)aSID RID:(CPString)aRID
+{
+    var user = [SRMyUser userWithJID:aJID connection:self];
+    
+    [self connectAs:user SID:aSID RID:aRID];
 }
 
 - (void)addDelegate:(id)aDelegate
@@ -152,7 +191,7 @@ SR_DISCONNECTING_STATUS         = Strophe.Status.DISCONNECTING;
         [self notifyDelegates:@selector(connection:didFailToAuthenticateWithError:)
                          with:[self, anError]]
     }
-    else if (aStatus == SR_CONNECTED_STATUS)
+    else if (aStatus == SR_CONNECTED_STATUS || aStatus == SR_ATTACHED_STATUS)
     {
         [self notifyDelegates:@selector(connectionDidConnectSuccessfully:)
                          with:[self]];
